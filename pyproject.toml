@@ -1,0 +1,30 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "python4poets"
+version = "0.1.0"
+description = "Small, readable tools for the Python for Poets course: corpora, word counts, distinctive words, KWIC, plots."
+readme = "README.md"
+license = "GPL-3.0-or-later"
+authors = [{ name = "Ryan Heuser" }]
+requires-python = ">=3.10"
+dependencies = [
+    "pandas",
+    "numpy",
+    "scipy>=1.11",
+    "nltk",
+    "plotnine",
+    "statsmodels",
+    "tqdm",
+]
+
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["python4poets"]
+
+[tool.hatch.build.targets.sdist]
+include = ["python4poets", "tests", "README.md", "LICENSE"]
