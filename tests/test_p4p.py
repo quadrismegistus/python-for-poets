@@ -218,3 +218,12 @@ def test_plots_render(corpus):
     p4p.plot_word_over_time(corpus, ["health", "taxes"], color="party").draw()
     result = p4p.distinctive_words_by_group(corpus, "party", "D", "R", min_count=1)
     p4p.plot_distinctive_words(result, significant_only=False).draw()
+
+
+def test_load_hansard_reads_downloaded_file(tmp_path):
+    # With the file already in the folder, nothing is downloaded.
+    pd.DataFrame({"id": ["a"], "year": [1979], "txt": ["Order, order."]}).to_parquet(
+        tmp_path / "hansard_sample.parquet"
+    )
+    df = p4p.load_hansard(folder=tmp_path)
+    assert df["txt"].tolist() == ["Order, order."]

@@ -27,6 +27,12 @@ NOVEL450_TXT_URL = (
     "?rlkey=7wmn97nvm0zzsm4bzaihul3zs&st=98zmx6sg&dl=1"
 )
 
+# Made by scripts/prepare_hansard.py (the hansard_sample.parquet it writes).
+HANSARD_SAMPLE_URL = (
+    "https://www.dropbox.com/scl/fi/1axb96yfi99eqhrh62kah/hansard_sample.parquet"
+    "?rlkey=t3pp50lq217c9b7duubhjgyeo&dl=1"
+)
+
 
 def download(url, folder=DATA_FOLDER, filename=None):
     """
@@ -166,3 +172,41 @@ def load_novel450(folder=os.path.join(DATA_FOLDER, "novel450")):
     download(NOVEL450_TXT_URL, folder, "txtlab_txt.zip")
     df = load_corpus(os.path.join(folder, "metadata.csv"), os.path.join(folder, "txt"))
     return df.sort_values("year").reset_index(drop=True)
+
+
+def load_hansard(folder=os.path.join(DATA_FOLDER, "hansard")):
+    """
+    Load a sample of ~96,000 House of Commons speeches (1979–2021).
+
+    Each year has 1,000 Conservative and 1,000 Labour speeches; the other
+    parties are sampled at the same rate, so they keep their real share.
+    Only speeches of 50–1000 words by MPs with a party are included.
+
+    Columns:
+        id, date, year, decade        the speech and when it was given
+        speaker, mnis_id, gender      who gave it (mnis_id: Parliament's ID for the MP)
+        party, party_main             party as recorded; and grouped into Conservative,
+                                      Labour, Liberal Democrat, SNP, Other
+        side                          "government" or "opposition" on that date
+        frontbench, post              whether the MP held a ministerial or shadow post
+                                      that day, and which
+        constituency
+        major_heading, minor_heading  the debate's topic headings
+        word_count, txt               the speech
+
+    Caution: opposition (shadow) posts are under-recorded before about 2000,
+    so `frontbench` is reliable for the government side throughout, but for
+    the opposition only from around then.
+
+    Sources: Evan Odell, "Hansard Speeches 1979–2021: Version 3.1.0" (Zenodo, 2021,
+    CC-BY 4.0, https://doi.org/10.5281/zenodo.4843485), built on mySociety's parlparse;
+    gender and posts from the UK Parliament Members API (members-api.parliament.uk).
+
+    Downloads the file (~60 MB) the first time; later calls reuse it.
+
+    Example:
+        >>> df = p4p.load_hansard()
+        >>> df.groupby("year")["gender"].value_counts(normalize=True)
+    """
+    path = download(HANSARD_SAMPLE_URL, folder, "hansard_sample.parquet")
+    return pd.read_parquet(path)

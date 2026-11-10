@@ -9,6 +9,7 @@ for help (`p4p.kwic?`), or `??` to read its code (`p4p.kwic??`).
 Loading corpora
     p4p.load_sotu()                  U.S. State of the Union speeches, with party
     p4p.load_novel450()              450 English, French and German novels
+    p4p.load_hansard()               ~96,000 House of Commons speeches, 1979–2021
     p4p.load_corpus(csv, folder)     your own: a spreadsheet + a folder of .txt files
     p4p.download(url)                download (and unzip) a file
 
@@ -34,7 +35,7 @@ Plotting
     p4p.plot_distinctive_words(result)
 """
 
-from ._corpus import download, load_corpus, load_novel450, load_sotu
+from ._corpus import download, load_corpus, load_hansard, load_novel450, load_sotu
 from ._counts import count_word_over_time, count_words, count_words_by_group
 from ._distinctive import crosstab_stats, distinctive_words, distinctive_words_by_group
 from ._kwic import kwic
@@ -54,6 +55,7 @@ __all__ = [
     "get_stopwords",
     "kwic",
     "load_corpus",
+    "load_hansard",
     "load_novel450",
     "load_sotu",
     "plot_distinctive_words",
