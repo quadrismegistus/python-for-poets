@@ -6,10 +6,13 @@ from scipy.special import xlogy
 from scipy.stats import chi2 as chi2_distribution
 from scipy.stats import chi2_contingency, false_discovery_control
 
-from ._counts import count_words_by_group
+from ._counts import _count_texts_by_group, count_words_by_group
 
 
-def distinctive_words(counts_a, counts_b, names=("a", "b"), min_count=5, alpha=0.05, sort="log_ratio"):
+def distinctive_words(
+    counts_a, counts_b, names=("a", "b"), min_count=5, alpha=0.05, sort="log_ratio",
+    texts_a=None, texts_b=None, min_texts=1,
+):
     """
     Find the words that most distinguish one set of texts from another.
 
@@ -22,9 +25,16 @@ def distinctive_words(counts_a, counts_b, names=("a", "b"), min_count=5, alpha=0
         alpha: the significance threshold for the `significant` column (default 0.05).
         sort: "log_ratio" (default: by how big the difference is) or "g2"
             (by how confident we are that the difference is real).
+        texts_a, texts_b: optional {word: number of texts that use it} for
+            each group. If given, adds columns texts_a and texts_b, and
+            `min_texts` applies. (p4p.distinctive_words_by_group does this for you.)
+        min_texts: skip words used in fewer than this many texts in total
+            (default 1: no limit). A word used 20 times in a single speech
+            can look "significant", but it tells us about that speech, not the group.
 
     Returns a DataFrame, one row per word, with columns:
         count_a, count_b  how many times each group uses the word
+        texts_a, texts_b  how many texts in each group use it (if given)
         fpm_a, fpm_b      frequency per million words in each group
         obs_exp_a         group a's count divided by what we'd expect if the
                           word were spread evenly (above 1 = overused by a)
@@ -52,6 +62,10 @@ def distinctive_words(counts_a, counts_b, names=("a", "b"), min_count=5, alpha=0
     a = np.array([counts_a.get(w, 0) for w in words], dtype=float)
     b = np.array([counts_b.get(w, 0) for w in words], dtype=float)
     keep = (a + b) >= min_count
+    if texts_a is not None and texts_b is not None:
+        n_texts_a = np.array([texts_a.get(w, 0) for w in words])
+        n_texts_b = np.array([texts_b.get(w, 0) for w in words])
+        keep &= (n_texts_a + n_texts_b) >= min_texts
     words, a, b = np.array(words, dtype=object)[keep], a[keep], b[keep]
 
     # Each word gets a 2x2 table: (this word, every other word) x (group a, group b).
@@ -94,6 +108,9 @@ def distinctive_words(counts_a, counts_b, names=("a", "b"), min_count=5, alpha=0
         }
     )
     result["significant"] = result["p_adj"] < alpha
+    if texts_a is not None and texts_b is not None:
+        result.insert(3, f"texts_{name_a}", n_texts_a[keep])
+        result.insert(4, f"texts_{name_b}", n_texts_b[keep])
 
     if sort == "log_ratio":
         result = result.sort_values("log_ratio", ascending=False)
@@ -105,23 +122,32 @@ def distinctive_words(counts_a, counts_b, names=("a", "b"), min_count=5, alpha=0
     return result.reset_index(drop=True)
 
 
-def distinctive_words_by_group(df, group_col, a, b, text_col="txt", min_count=5, alpha=0.05, sort="log_ratio", **tokenize_kw):
+def distinctive_words_by_group(
+    df, group_col, a, b, text_col="txt", min_count=5, min_texts=1, alpha=0.05, sort="log_ratio", **tokenize_kw
+):
     """
     Find the words that most distinguish texts where `group_col` is `a` from those where it is `b`.
 
     Counts the words in each group, then runs p4p.distinctive_words. Column
-    names use the group names, e.g. count_Democrat, fpm_Republican.
+    names use the group names, e.g. count_Democrat, fpm_Republican. Also
+    counts how many texts in each group use each word (texts_Democrat, ...);
+    `min_texts` skips words used in fewer texts than that.
 
     Example:
         >>> p4p.distinctive_words_by_group(df, "party", "Democrat", "Republican")
         >>> p4p.distinctive_words_by_group(df, "gender", "female", "male", stopwords="english")
+        >>> p4p.distinctive_words_by_group(df, "party_main", "Conservative", "Labour", min_texts=20)
     """
     subset = df[df[group_col].isin([a, b])]
     counts = count_words_by_group(subset, group_col, text_col=text_col, **tokenize_kw)
     for group in (a, b):
         if group not in counts:
             raise ValueError(f"No rows where {group_col!r} is {group!r}")
-    return distinctive_words(counts[a], counts[b], names=(a, b), min_count=min_count, alpha=alpha, sort=sort)
+    texts = _count_texts_by_group(subset, group_col, text_col=text_col, **tokenize_kw)
+    return distinctive_words(
+        counts[a], counts[b], names=(a, b), min_count=min_count, alpha=alpha, sort=sort,
+        texts_a=texts[a], texts_b=texts[b], min_texts=min_texts,
+    )
 
 
 def crosstab_stats(df, col1, col2, method="chi2"):

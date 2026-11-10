@@ -183,7 +183,7 @@ def load_hansard(folder=os.path.join(DATA_FOLDER, "hansard")):
     Only speeches of 50–1000 words by MPs with a party are included.
 
     Columns:
-        id, date, year, decade        the speech and when it was given
+        date, year, decade            when the speech was given
         speaker, mnis_id, gender      who gave it (mnis_id: Parliament's ID for the MP)
         party, party_main             party as recorded; and grouped into Conservative,
                                       Labour, Liberal Democrat, SNP, Other
@@ -192,7 +192,8 @@ def load_hansard(folder=os.path.join(DATA_FOLDER, "hansard")):
                                       that day, and which
         constituency
         major_heading, minor_heading  the debate's topic headings
-        word_count, txt               the speech
+        word_count                    the speech's length in words
+        id, txt                       the speech's ID in Hansard, and the speech
 
     Caution: opposition (shadow) posts are under-recorded before about 2000,
     so `frontbench` is reliable for the government side throughout, but for
@@ -209,4 +210,13 @@ def load_hansard(folder=os.path.join(DATA_FOLDER, "hansard")):
         >>> df.groupby("year")["gender"].value_counts(normalize=True)
     """
     path = download(HANSARD_SAMPLE_URL, folder, "hansard_sample.parquet")
-    return pd.read_parquet(path)
+    df = pd.read_parquet(path)
+    # Older Hansard markup leaves line breaks and tabs around some headings.
+    for col in ["major_heading", "minor_heading"]:
+        if col in df.columns:
+            df[col] = df[col].str.strip()
+    # The ids are long and unreadable; put them at the end, next to the text,
+    # so tables (and p4p.kwic) start with the date and speaker.
+    if "id" in df.columns:
+        df = df[[c for c in df.columns if c not in ("id", "txt")] + ["id", "txt"]]
+    return df

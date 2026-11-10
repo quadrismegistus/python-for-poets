@@ -157,6 +157,22 @@ def test_distinctive_words_by_group(corpus):
         p4p.distinctive_words_by_group(corpus, "party", "D", "Whig")
 
 
+def test_min_texts_counts_texts_not_uses():
+    # "care" is used 4 times but in only 2 texts; "taxes" 3 times in 2 texts;
+    # "jobs" once, in 1 text.
+    df = pd.DataFrame({
+        "group": ["a", "a", "b", "b"],
+        "txt": ["care care care", "jobs care", "taxes taxes", "taxes"],
+    })
+    result = p4p.distinctive_words_by_group(df, "group", "a", "b", min_count=1)
+    row = result.set_index("word").loc["care"]
+    assert (row["count_a"], row["texts_a"], row["texts_b"]) == (4, 2, 0)
+    filtered = p4p.distinctive_words_by_group(df, "group", "a", "b", min_count=1, min_texts=2)
+    assert set(filtered["word"]) == {"care", "taxes"}
+    # Leaving out rare words doesn't change the totals frequencies are based on.
+    assert filtered.set_index("word").loc["care", "fpm_a"] == row["fpm_a"]
+
+
 def test_crosstab_stats_matches_scipy():
     df = pd.DataFrame({"g": list("mmmmffff" * 5), "l": list("eeefeffe" * 5)})
     chi2, p, obs_exp = p4p.crosstab_stats(df, "g", "l")
@@ -218,6 +234,20 @@ def test_plots_render(corpus):
     p4p.plot_word_over_time(corpus, ["health", "taxes"], color="party").draw()
     result = p4p.distinctive_words_by_group(corpus, "party", "D", "R", min_count=1)
     p4p.plot_distinctive_words(result, significant_only=False).draw()
+    p4p.plot_distinctive_words(result, significant_only=False, by="g2").draw()
+    p4p.plot_word_over_time(corpus, "health", per_text=True).draw()
+
+
+def test_plot_word_over_time_adds_up_each_year():
+    df = pd.DataFrame({
+        "year": [2000, 2000, 2001],
+        "party": ["D", "D", "D"],
+        "txt": ["war war peace peace", "peace peace peace peace peace peace", "war"],
+    })
+    data = p4p.plot_word_over_time(df, "war", color="party").data
+    # 2000: 2 uses of "war" in 10 words, not the average of 50% and 0%.
+    assert data.set_index("year").loc[2000, "fpm"] == pytest.approx(200_000)
+    assert len(data) == 2
 
 
 def test_load_hansard_reads_downloaded_file(tmp_path):

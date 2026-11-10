@@ -191,6 +191,8 @@ def add_columns(df, mps_cache_path):
     df["year"] = df["date"].dt.year
     df["decade"] = df["year"] // 10 * 10
     df["party"] = df["party"].str.strip()
+    for col in ["major_heading", "minor_heading"]:
+        df[col] = df[col].str.strip()
     df["party_main"] = df["party"].map(PARTY_MAIN).fillna("Other")
     df["side"] = [side_on(d, p) for d, p in zip(df["date"], df["party_main"])]
 

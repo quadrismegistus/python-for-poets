@@ -25,12 +25,17 @@ def count_words(text, lower=True, numbers=False, stopwords=None):
         >>> counts.most_common(1)
         [('the', 2)]
     """
+    # Return a copy, so changing the result doesn't change the remembered one.
+    return Counter(_remembered_counts(text, lower, numbers, stopwords))
+
+
+def _remembered_counts(text, lower=True, numbers=False, stopwords=None):
+    # The remembered Counter itself, not a copy: only for code that won't change it.
     if isinstance(stopwords, str):
         stopwords = get_stopwords(stopwords)
     elif stopwords is not None:
         stopwords = frozenset(stopwords)
-    # Return a copy, so changing the result doesn't change the remembered one.
-    return Counter(_count_words(text, lower, numbers, stopwords))
+    return _count_words(text, lower, numbers, stopwords)
 
 
 @lru_cache(maxsize=None)
@@ -60,7 +65,19 @@ def count_words_by_group(df, group_col, text_col="txt", **tokenize_kw):
             continue
         if group not in groups:
             groups[group] = Counter()
-        groups[group].update(count_words(text, **tokenize_kw))
+        groups[group].update(_remembered_counts(text, **tokenize_kw))
+    return groups
+
+
+def _count_texts_by_group(df, group_col, text_col="txt", **tokenize_kw):
+    # {group: {word: how many texts in the group use it}}
+    groups = {}
+    for group, text in zip(df[group_col], df[text_col]):
+        if pd.isna(group):
+            continue
+        if group not in groups:
+            groups[group] = Counter()
+        groups[group].update(_remembered_counts(text, **tokenize_kw).keys())
     return groups
 
 
@@ -77,20 +94,19 @@ def count_word_over_time(df, word, time_col="year", text_col="txt", **tokenize_k
         >>> p4p.count_word_over_time(df, ["war", "peace"])
     """
     words = [word] if isinstance(word, str) else list(word)
-    lower = tokenize_kw.get("lower", True)
-    if lower:
+    if tokenize_kw.get("lower", True):
         words = [w.lower() for w in words]
 
+    counts = [_remembered_counts(text, **tokenize_kw) for text in df[text_col]]
+    totals = pd.Series([sum(c.values()) for c in counts], index=df.index)
     metadata = df.drop(columns=[text_col])
-    rows = []
-    for (_, meta), text in zip(metadata.iterrows(), df[text_col]):
-        counts = count_words(text, **tokenize_kw)
-        total = sum(counts.values())
-        for w in words:
-            row = meta.to_dict()
-            row["word"] = w
-            row["count"] = counts[w]
-            row["total"] = total
-            row["fpm"] = counts[w] / total * 1_000_000 if total else 0.0
-            rows.append(row)
-    return pd.DataFrame(rows).sort_values(time_col).reset_index(drop=True)
+
+    parts = []
+    for w in words:
+        part = metadata.copy()
+        part["word"] = w
+        part["count"] = [c[w] for c in counts]
+        part["total"] = totals
+        part["fpm"] = (part["count"] / totals * 1_000_000).where(totals > 0, 0.0)
+        parts.append(part)
+    return pd.concat(parts).sort_values(time_col, kind="stable").reset_index(drop=True)
