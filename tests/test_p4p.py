@@ -305,3 +305,20 @@ def test_topic_model_tables_and_plots(two_topic_corpus):
     assert later["significant"].all()
     with pytest.raises(ValueError):
         model.distinctive_topics("group", "farm", "mountain")
+
+
+def test_download_rejects_web_page_and_replaces_broken_cache(tmp_path):
+    # A "file deleted" page served instead of the data.
+    page = tmp_path / "page.html"
+    page.write_text("<!DOCTYPE html><html><title>File Deleted</title></html>")
+    folder = tmp_path / "data"
+    with pytest.raises(RuntimeError, match="web page"):
+        p4p.download(page.as_uri(), folder=folder, filename="sample.parquet")
+    assert not list(folder.iterdir())  # nothing cached
+
+    # A broken file cached by an older version gets replaced by a good one.
+    good = tmp_path / "good.parquet"
+    pd.DataFrame({"txt": ["Order, order."]}).to_parquet(good)
+    (folder / "sample.parquet").write_bytes(page.read_bytes())
+    path = p4p.download(good.as_uri(), folder=folder, filename="sample.parquet")
+    assert pd.read_parquet(path)["txt"].tolist() == ["Order, order."]

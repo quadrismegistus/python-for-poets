@@ -29,8 +29,8 @@ NOVEL450_TXT_URL = (
 
 # Made by scripts/prepare_hansard.py (the hansard_sample.parquet it writes).
 HANSARD_SAMPLE_URL = (
-    "https://www.dropbox.com/scl/fi/1axb96yfi99eqhrh62kah/hansard_sample.parquet"
-    "?rlkey=t3pp50lq217c9b7duubhjgyeo&dl=1"
+    "https://www.dropbox.com/scl/fi/lu40ytfnbmmeiwozlixpv/hansard_sample.parquet"
+    "?rlkey=jlf1lwsjjcnpklu5tkw5povs9&dl=1"
 )
 
 
@@ -49,11 +49,21 @@ def download(url, folder=DATA_FOLDER, filename=None):
     os.makedirs(folder, exist_ok=True)
     path = os.path.join(folder, filename)
 
+    # A file left by an earlier, broken download: throw it away and try again.
+    if os.path.exists(path) and not _looks_complete(path):
+        os.remove(path)
+
     if not os.path.exists(path):
         print(f"Downloading {filename} ...")
         # Download to a temporary name first, so a half-finished download
         # isn't mistaken for a finished one next time.
         urllib.request.urlretrieve(url, path + ".part")
+        if not _looks_complete(path + ".part", filename):
+            os.remove(path + ".part")
+            raise RuntimeError(
+                f"Downloading {filename} gave a web page (or a damaged file) instead of the file. "
+                f"The link may be broken, or the file moved or deleted: {url}"
+            )
         os.replace(path + ".part", path)
 
     if zipfile.is_zipfile(path):
@@ -63,6 +73,27 @@ def download(url, folder=DATA_FOLDER, filename=None):
                 zf.extractall(folder, members=names)
 
     return path
+
+
+def _looks_complete(path, filename=None):
+    # Is this the kind of file its name says? Sharing sites answer a broken
+    # link with a web page, which would otherwise be saved under the file's name.
+    filename = (filename or path).lower()
+    with open(path, "rb") as f:
+        start = f.read(512)
+    if not start:
+        return False
+    if filename.endswith(".zip"):
+        return zipfile.is_zipfile(path)
+    if filename.endswith(".parquet"):
+        if os.path.getsize(path) < 8:
+            return False
+        with open(path, "rb") as f:
+            f.seek(-4, os.SEEK_END)
+            return start[:4] == b"PAR1" and f.read(4) == b"PAR1"
+    if not filename.endswith((".html", ".htm")):
+        return not start.lstrip().lower().startswith((b"<!doctype html", b"<html"))
+    return True
 
 
 def load_corpus(metadata_csv, txt_folder, id_col="id", text_col="txt"):
