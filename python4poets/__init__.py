@@ -33,6 +33,9 @@ Reading
 Plotting
     p4p.plot_word_over_time(df, word)
     p4p.plot_distinctive_words(result)
+
+Topics
+    p4p.topic_model(df, n_topics)    find topics; then type `model.` and Tab
 """
 
 from ._corpus import download, load_corpus, load_hansard, load_novel450, load_sotu
@@ -41,6 +44,7 @@ from ._distinctive import crosstab_stats, distinctive_words, distinctive_words_b
 from ._kwic import kwic
 from ._plot import plot_distinctive_words, plot_word_over_time
 from ._text import get_stopwords, tokenize
+from ._topics import topic_model
 
 __version__ = "0.1.0"
 
@@ -61,4 +65,5 @@ __all__ = [
     "plot_distinctive_words",
     "plot_word_over_time",
     "tokenize",
+    "topic_model",
 ]

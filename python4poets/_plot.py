@@ -78,7 +78,8 @@ def plot_word_over_time(df, word, time_col="year", color=None, per_text=False, t
 
 def plot_distinctive_words(result, n=15, significant_only=True, by="log_ratio"):
     """
-    Bar chart of the most distinctive words for each group, from p4p.distinctive_words.
+    Bar chart of the most distinctive words for each group, from p4p.distinctive_words
+    (or topics, from model.distinctive_topics).
 
     By default, bars show the log ratio: how many times more frequent (on a
     log2 scale: 1 = twice as frequent, 2 = four times) a word is in one group
@@ -87,8 +88,8 @@ def plot_distinctive_words(result, n=15, significant_only=True, by="log_ratio"):
     which tend to be commoner words.
 
     Args:
-        result: the DataFrame returned by p4p.distinctive_words or
-            p4p.distinctive_words_by_group.
+        result: the DataFrame returned by p4p.distinctive_words,
+            p4p.distinctive_words_by_group, or model.distinctive_topics.
         n: how many words to show for each group (default 15).
         significant_only: only show statistically significant words (default True).
         by: "log_ratio" (default) or "g2": which measure to choose and draw words by.
@@ -100,7 +101,12 @@ def plot_distinctive_words(result, n=15, significant_only=True, by="log_ratio"):
     """
     if by not in ("log_ratio", "g2"):
         raise ValueError(f'by must be "log_ratio" or "g2", not {by!r}')
-    name_a, name_b = [c[len("fpm_") :] for c in result.columns if c.startswith("fpm_")]
+    if by not in result.columns:
+        raise ValueError(f"This result has no {by!r} column; try by='log_ratio'")
+    # Words have frequencies (fpm_a, fpm_b); topics have average shares (share_a, share_b).
+    prefix = "fpm_" if "word" in result.columns else "share_"
+    label_col = "word" if "word" in result.columns else "label"
+    name_a, name_b = [c[len(prefix) :] for c in result.columns if c.startswith(prefix)]
     data = result[result["significant"]] if significant_only else result
     # G² is always positive: give it the log ratio's sign, so group b's words go left.
     data = data.assign(value=data["g2"] * np.sign(data["log_ratio"]) if by == "g2" else data["log_ratio"])
@@ -110,7 +116,7 @@ def plot_distinctive_words(result, n=15, significant_only=True, by="log_ratio"):
         pd.concat([top_a.assign(group=f"more {name_a}"), top_b.assign(group=f"more {name_b}")])
         .sort_values("value")
     )
-    data["word"] = pd.Categorical(data["word"], categories=list(dict.fromkeys(data["word"])))
+    data["word"] = pd.Categorical(data[label_col], categories=list(dict.fromkeys(data[label_col])))
 
     return (
         p9.ggplot(data, p9.aes(x="word", y="value", fill="group"))

@@ -257,3 +257,51 @@ def test_load_hansard_reads_downloaded_file(tmp_path):
     )
     df = p4p.load_hansard(folder=tmp_path)
     assert df["txt"].tolist() == ["Order, order."]
+
+
+# --- topics ----------------------------------------------------------------
+
+
+@pytest.fixture
+def two_topic_corpus():
+    rng = np.random.default_rng(0)
+    farm = ["cows", "sheep", "barley", "harvest", "tractor", "milk"]
+    sea = ["boats", "nets", "harbour", "tide", "herring", "sail"]
+    rows = []
+    for i in range(80):
+        group, words = ("farm", farm) if i % 2 else ("sea", sea)
+        rows.append({"year": 2000 + i % 20, "group": group, "txt": " ".join(rng.choice(words, 30))})
+    return pd.DataFrame(rows)
+
+
+@pytest.mark.parametrize("method", ["lda", "nmf"])
+def test_topic_model_separates_obvious_topics(two_topic_corpus, method):
+    model = p4p.topic_model(two_topic_corpus, n_topics=2, method=method, min_texts=2, max_share=1.0)
+    shares = model.texts[model.columns]
+    assert np.allclose(shares.sum(axis=1), 1)
+    # Every farm text has the same top topic, and every sea text the other.
+    by_group = model.texts.groupby("group")["top_topic"].agg(["nunique", "first"])
+    assert (by_group["nunique"] == 1).all() and by_group["first"].nunique() == 2
+    farm_topic = by_group.loc["farm", "first"]
+    assert set(model.top_words(farm_topic, n=6)["word"]) == {"cows", "sheep", "barley", "harvest", "tractor", "milk"}
+    assert model.top_texts(farm_topic, n=3)["group"].eq("farm").all()
+
+
+def test_topic_model_tables_and_plots(two_topic_corpus):
+    model = p4p.topic_model(two_topic_corpus, n_topics=2, method="nmf", min_texts=2, max_share=1.0)
+    assert model.text_topics(0, n=2)["share"].sum() == pytest.approx(1)
+    assert model.find_topic("Herring") == model.find_topic("boats") != model.find_topic("cows")
+    model.name_topic(0, "zero")
+    assert model.topics.loc[0, "label"] == "0: zero"
+    assert model.topics_by_group("group").shape == (2, 2)
+    result = model.distinctive_topics("group", "farm", "sea")
+    assert result["significant"].all() and result.iloc[0]["log_ratio"] > 0 > result.iloc[-1]["log_ratio"]
+    p4p.plot_distinctive_words(result).draw()
+    model.plot_over_time(0).draw()
+    model.plot_over_time([0, 1], color="group").draw()
+    # A model matches itself perfectly.
+    assert np.allclose(model.match(model)["similarity"], 1)
+    later = model.distinctive_topics("group", "farm", "sea", rows=model.texts["year"] >= 2010)
+    assert later["significant"].all()
+    with pytest.raises(ValueError):
+        model.distinctive_topics("group", "farm", "mountain")

@@ -17,6 +17,7 @@ dependencies = [
     "scipy>=1.11",
     "nltk",
     "plotnine",
+    "scikit-learn",
     "statsmodels",
     "tqdm",
 ]
