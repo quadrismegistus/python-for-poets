@@ -3,12 +3,12 @@
 import os
 import re
 import urllib.error
-import urllib.request
 import warnings
 
 import pandas as pd
 
 from ._corpus import DATA_FOLDER, download
+from ._net import urlopen
 
 # Where to get the catalog of every book, tried in order. First, the course's
 # snapshot of it (pg_catalog.csv, zipped: ~6 MB, and quick to download); then
@@ -216,7 +216,7 @@ def _fetch_book(book_id):
     candidates.append((f"https://www.gutenberg.org/cache/epub/{s}/pg{s}.txt", "utf-8"))
     for url, encoding in candidates:
         try:
-            with urllib.request.urlopen(url, timeout=60) as response:
+            with urlopen(url) as response:
                 data = response.read()
         except (urllib.error.URLError, TimeoutError):
             continue

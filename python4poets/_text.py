@@ -63,6 +63,11 @@ def get_stopwords(language="english"):
     try:
         words = nltk.corpus.stopwords.words(language)
     except LookupError:
-        nltk.download("stopwords", quiet=True)
+        # The first time: download NLTK's stopword lists (see _net for why
+        # we supply the certificates).
+        from ._net import trusted_certificates
+
+        with trusted_certificates():
+            nltk.download("stopwords", quiet=True)
         words = nltk.corpus.stopwords.words(language)
     return frozenset(_normalize_apostrophes(w) for w in words)

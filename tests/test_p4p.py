@@ -358,6 +358,30 @@ def test_load_word_vectors_reads_downloaded_file(tmp_path):
     assert wv.name == "labour" and wv.similar("fair", n=1)["word"].tolist() == ["just"]
 
 
+# --- downloads -------------------------------------------------------------
+
+
+def test_downloads_trust_certifi_not_just_the_system(monkeypatch, tmp_path):
+    # Python from python.org on a Mac has no certificate list of its own;
+    # p4p must bring one (certifi), even when the system's is empty.
+    import ssl
+
+    from python4poets import _net
+
+    empty = tmp_path / "empty.pem"
+    empty.write_text("")
+    monkeypatch.setenv("SSL_CERT_FILE", str(empty))
+    monkeypatch.setenv("SSL_CERT_DIR", str(tmp_path))
+    assert len(ssl.create_default_context().get_ca_certs()) == 0
+    assert len(_net.ssl_context().get_ca_certs()) > 50
+
+    # trusted_certificates() affects other libraries only inside the block.
+    original = ssl._create_default_https_context
+    with _net.trusted_certificates():
+        assert ssl._create_default_https_context is _net.ssl_context
+    assert ssl._create_default_https_context is original
+
+
 # --- gutenberg -------------------------------------------------------------
 
 

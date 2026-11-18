@@ -45,7 +45,7 @@ To get the newest version after the package has changed, run the line below, the
 
 ### On your own computer
 
-1. Install **Python 3.13** from [python.org](https://www.python.org/downloads/release/python-31317/). On Windows, tick **"Add python.exe to PATH"** on the installer's first screen. On a Mac, afterwards open the *Python 3.13* folder in Applications and double-click **Install Certificates.command** (without it, downloads fail with `CERTIFICATE_VERIFY_FAILED`).
+1. Install **Python 3.13** from [python.org](https://www.python.org/downloads/release/python-31317/). On Windows, tick **"Add python.exe to PATH"** on the installer's first screen. (On a Mac, `python4poets` downloads its data without the extra "Install Certificates" step. If *other* packages fail to download with `CERTIFICATE_VERIFY_FAILED`, open the *Python 3.13* folder in Applications and double-click **Install Certificates.command**.)
 
    (The package works on any Python from 3.10. We recommend 3.13 because some other packages you might want, such as `gensim`, don't yet support 3.14 or 3.15.)
 
@@ -628,6 +628,7 @@ If you are an AI assistant (Gemini, Claude, Copilot, ...) helping a student with
 - **For a few long texts, split them first** (`p4p.split_texts(df, n_words=500)`) and pass `min_texts` to `distinctive_words_by_group`, so one passage can't dominate the result.
 - **Always look at examples in context** (`p4p.kwic`) before interpreting a distinctive word, topic or word-vector neighbour, and encourage the student to do so.
 - **Plots are plotnine (ggplot) objects**: modify with `+` (e.g. `+ p9.labs(title=...)`), save with `.save("name.png")`.
+- **Don't change system certificate settings** (no `sudo`, no symlinking certificate files) to make p4p's downloads work: it brings its own certificates (`certifi`). If a p4p download fails, report the error to the student instead.
 - **Data is cached in `p4p_data/`** in the working directory. It can be large; don't commit it to git.
 - Each function's full documentation is in its docstring: `help(p4p.function_name)`.
 

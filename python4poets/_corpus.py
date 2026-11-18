@@ -1,13 +1,15 @@
 """Downloading and loading corpora."""
 
 import os
+import shutil
 import unicodedata
 import urllib.parse
-import urllib.request
 import warnings
 import zipfile
 
 import pandas as pd
+
+from ._net import urlopen
 
 DATA_FOLDER = "p4p_data"
 
@@ -57,7 +59,8 @@ def download(url, folder=DATA_FOLDER, filename=None):
         print(f"Downloading {filename} ...")
         # Download to a temporary name first, so a half-finished download
         # isn't mistaken for a finished one next time.
-        urllib.request.urlretrieve(url, path + ".part")
+        with urlopen(url) as response, open(path + ".part", "wb") as f:
+            shutil.copyfileobj(response, f)
         if not _looks_complete(path + ".part", filename):
             os.remove(path + ".part")
             raise RuntimeError(
