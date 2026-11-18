@@ -52,7 +52,7 @@ def check():
         report(len(catalog) > 1000, f"downloads work: Gutenberg catalog, {len(catalog):,} books, in {os.path.abspath(folder)}")
     except Exception as err:  # noqa: BLE001
         report(False, f"downloads ({type(err).__name__}: {err})",
-               "Check your internet connection. If you use an AI assistant, let it give this command network access.")
+               "Check your internet connection. If an AI assistant ran this, it needs to run it with network access enabled.")
 
     try:
         import pandas as pd

@@ -47,6 +47,7 @@ Word vectors
     p4p.compare_similar(word, [wv1, wv2])    a word's neighbours in two models
 """
 
+from . import _mplconfig  # noqa: F401  (first: before anything imports matplotlib)
 from ._corpus import download, load_corpus, load_hansard, load_novel450, load_sotu
 from ._counts import count_word_over_time, count_words, count_words_by_group
 from ._distinctive import crosstab_stats, distinctive_words, distinctive_words_by_group

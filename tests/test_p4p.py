@@ -390,6 +390,27 @@ def test_download_nltk_data_keeps_data_in_folder_and_skips_existing(tmp_path, mo
     assert calls == [("wordnet", str(folder))]
 
 
+def test_matplotlib_gets_a_writable_folder(tmp_path, monkeypatch):
+    # In a sandbox that can't write to the home folder, matplotlib's cache
+    # goes to p4p_data/matplotlib; otherwise matplotlib is left alone.
+    import os
+    import sys
+
+    from python4poets import _mplconfig
+
+    monkeypatch.delenv("MPLCONFIGDIR", raising=False)
+    monkeypatch.delitem(sys.modules, "matplotlib", raising=False)  # as if not yet imported
+    monkeypatch.chdir(tmp_path)
+
+    monkeypatch.setattr(_mplconfig, "_usual_folders", lambda: [tmp_path / "writable"])
+    _mplconfig.use_writable_folder()
+    assert "MPLCONFIGDIR" not in os.environ
+
+    monkeypatch.setattr(_mplconfig, "_writable", lambda folder: False)
+    _mplconfig.use_writable_folder()
+    assert os.environ["MPLCONFIGDIR"] == str(tmp_path / "p4p_data" / "matplotlib")
+
+
 # --- downloads -------------------------------------------------------------
 
 

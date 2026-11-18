@@ -16,7 +16,7 @@ This folder is for the course *Python for Poets*. The person you're working with
   - Stopwords: use `p4p.get_stopwords()`, which needs no download (not `nltk.download("stopwords")`).
   - Other NLTK data (e.g. the `punkt_tab` tokenizer for `nltk.word_tokenize`): use `p4p.download_nltk_data("punkt_tab")`, not `nltk.download(...)`. It saves the data in `p4p_data/nltk_data` and tells NLTK to look there.
   - Hugging Face datasets: put `os.environ["HF_HOME"] = "p4p_data/huggingface"` at the top of the script or notebook, before `import datasets`.
-- Downloads need network access. If a command fails because the network is blocked, ask the student to allow it; don't look for another way round.
+- Commands that download anything need network access: `pip install`, downloading files, and any Python code that loads a corpus, Gutenberg books, word vectors or a dataset (including `python -m python4poets`). Run them with network access enabled from the start, rather than trying without it first. If the network is still blocked, ask the student to allow it; don't look for another way round.
 
 ## Teaching, not just doing
 

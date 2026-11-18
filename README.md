@@ -91,6 +91,8 @@ Make an empty folder, open it in your assistant, and paste this prompt. It sets 
 ```text
 I'm a humanities student learning Python in a course called Python for Poets. Please set up this folder for the course, following these steps exactly. Before each step, tell me in a sentence what you're about to do and why. Don't install anything else, don't use sudo, and don't change anything outside this folder.
 
+Steps 2, 3 and 4 download things from the internet: run those commands with network access enabled from the start (don't try them without it first).
+
 1. Make a virtual environment called .venv in this folder, with Python 3.13 (Mac: python3.13 -m venv .venv; Windows: py -3.13 -m venv .venv). If Python 3.13 isn't installed, stop and tell me.
 
 2. Using the .venv's Python, install the course package with Jupyter and Hugging Face datasets:
@@ -106,7 +108,7 @@ I'm a humanities student learning Python in a course called Python for Poets. Pl
 Then stop and summarise what you did.
 ```
 
-The installation and downloads need internet access: if your assistant asks to allow network access for a command, say yes.
+The installation and downloads need internet access: when your assistant asks to allow network access for a command, say yes.
 
 ### Getting help inside Python
 
