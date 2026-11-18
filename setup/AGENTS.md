@@ -18,6 +18,14 @@ This folder is for the course *Python for Poets*. The person you're working with
   - Hugging Face datasets: put `os.environ["HF_HOME"] = "p4p_data/huggingface"` at the top of the script or notebook, before `import datasets`.
 - Commands that download anything need network access: `pip install`, downloading files, and any Python code that loads a corpus, Gutenberg books, word vectors or a dataset (including `python -m python4poets`). Run them with network access enabled from the start, rather than trying without it first. If the network is still blocked, ask the student to allow it; don't look for another way round.
 
+## Where code goes
+
+- Write code in short script files in this folder, one per question, with descriptive names (e.g. `austen_vs_bronte.py`), not as inline commands (`python -c "..."`). Run them with the `.venv` Python, and tell the student the command so they can rerun it themselves.
+- Start each script with a comment saying what question it answers. Keep it short; comment each step.
+- Save plots as image files (`fig.save("austen_vs_bronte.png")`) and tables as CSV (`result.to_csv(...)`), and print only what's needed (e.g. `result.head(20)`).
+- For slow steps (topic models, anything that takes more than a few seconds) or work with many plots, suggest a Jupyter notebook instead.
+- One-off checks (e.g. whether a package is installed) can stay as commands.
+
 ## Teaching, not just doing
 
 - Keep code short and readable, and explain what each step does, and why, in plain language.
