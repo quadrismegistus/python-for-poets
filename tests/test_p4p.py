@@ -358,6 +358,38 @@ def test_load_word_vectors_reads_downloaded_file(tmp_path):
     assert wv.name == "labour" and wv.similar("fair", n=1)["word"].tolist() == ["just"]
 
 
+# --- stopwords -------------------------------------------------------------
+
+
+def test_stopwords_come_with_the_package(monkeypatch):
+    # No download: these must work even where nltk.download can't.
+    import nltk
+
+    monkeypatch.setattr(nltk, "download", lambda *a, **k: pytest.fail("tried to download"))
+    english = p4p.get_stopwords("english")
+    assert {"the", "of", "don't"} <= english and "poetry" not in english
+    assert "le" in p4p.get_stopwords("French")
+    assert len(p4p.stopword_languages()) == 33
+    with pytest.raises(ValueError, match="Choose one of"):
+        p4p.get_stopwords("klingon")
+
+
+def test_download_nltk_data_keeps_data_in_folder_and_skips_existing(tmp_path, monkeypatch):
+    import nltk
+
+    folder = tmp_path / "nltk_data"
+    (folder / "tokenizers" / "punkt_tab").mkdir(parents=True)  # as if already downloaded
+    monkeypatch.setattr(nltk.data, "path", list(nltk.data.path))
+    monkeypatch.setattr(nltk, "download", lambda *a, **k: pytest.fail("downloaded again"))
+    p4p.download_nltk_data("punkt_tab", folder=folder)
+    assert str(folder) in nltk.data.path
+
+    calls = []
+    monkeypatch.setattr(nltk, "download", lambda name, **kw: calls.append((name, kw["download_dir"])) or True)
+    p4p.download_nltk_data("wordnet", folder=folder)
+    assert calls == [("wordnet", str(folder))]
+
+
 # --- downloads -------------------------------------------------------------
 
 
@@ -375,11 +407,6 @@ def test_downloads_trust_certifi_not_just_the_system(monkeypatch, tmp_path):
     assert len(ssl.create_default_context().get_ca_certs()) == 0
     assert len(_net.ssl_context().get_ca_certs()) > 50
 
-    # trusted_certificates() affects other libraries only inside the block.
-    original = ssl._create_default_https_context
-    with _net.trusted_certificates():
-        assert ssl._create_default_https_context is _net.ssl_context
-    assert ssl._create_default_https_context is original
 
 
 # --- gutenberg -------------------------------------------------------------

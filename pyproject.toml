@@ -24,6 +24,11 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# For your own computer (Colab has these already):
+#   pip install "python4poets[all] @ https://github.com/quadrismegistus/python-for-poets/archive/refs/heads/main.zip"
+jupyter = ["jupyter"]
+datasets = ["datasets"]
+all = ["jupyter", "datasets"]
 dev = ["pytest"]
 
 [tool.hatch.build.targets.wheel]

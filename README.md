@@ -68,14 +68,45 @@ To get the newest version after the package has changed, run the line below, the
 
    If Windows says "running scripts is disabled on this system", run `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` once, then try `.venv\Scripts\activate` again.
 
-3. Install the package (this works without `git`), and Jupyter if you want notebooks:
+3. Install the package (this works without `git`). `[all]` adds Jupyter (for notebooks) and Hugging Face `datasets`; leave it out for just the package:
 
    ```bash
-   pip install https://github.com/quadrismegistus/python-for-poets/archive/refs/heads/main.zip
-   pip install jupyter
+   pip install "python4poets[all] @ https://github.com/quadrismegistus/python-for-poets/archive/refs/heads/main.zip"
    ```
 
+4. Check that everything works:
+
+   ```bash
+   python -m python4poets
+   ```
+
+   This prints one line per check (Python version, downloads, plotting, and the optional extras), with advice for anything that fails.
+
 Corpora and other data are downloaded the first time you load them, into a folder called `p4p_data` inside whatever folder you're working in. Later loads reuse them.
+
+### With an AI coding assistant (Antigravity, Gemini, Claude Code, ...)
+
+Make an empty folder, open it in your assistant, and paste this prompt. It sets up the folder step by step, and saves [`AGENTS.md`](setup/AGENTS.md), a file of rules the assistant will read in every later conversation in this folder (use Python 3.13 in `.venv`, use this package, keep downloads inside the folder, explain each step).
+
+```text
+I'm a humanities student learning Python in a course called Python for Poets. Please set up this folder for the course, following these steps exactly. Before each step, tell me in a sentence what you're about to do and why. Don't install anything else, don't use sudo, and don't change anything outside this folder.
+
+1. Make a virtual environment called .venv in this folder, with Python 3.13 (Mac: python3.13 -m venv .venv; Windows: py -3.13 -m venv .venv). If Python 3.13 isn't installed, stop and tell me.
+
+2. Using the .venv's Python, install the course package with Jupyter and Hugging Face datasets:
+   python -m pip install "python4poets[all] @ https://github.com/quadrismegistus/python-for-poets/archive/refs/heads/main.zip"
+
+3. Download these two files into this folder, keeping their names, and read both. AGENTS.md has the rules for all our future work here.
+   https://raw.githubusercontent.com/quadrismegistus/python-for-poets/main/README.md
+   https://raw.githubusercontent.com/quadrismegistus/python-for-poets/main/setup/AGENTS.md
+
+4. Using the .venv's Python, run: python -m python4poets
+   Show me its output. If any line says FAIL, tell me what it says; don't try to fix it yourself.
+
+Then stop and summarise what you did.
+```
+
+The installation and downloads need internet access: if your assistant asks to allow network access for a command, say yes.
 
 ### Getting help inside Python
 
@@ -201,7 +232,7 @@ stops = p4p.get_stopwords("english") | {"applause", "mr"}
 p4p.count_words(text, stopwords=stops).most_common(20)
 ```
 
-Other languages: `p4p.get_stopwords("french")`, `"german"`, `"spanish"`, ...
+Other languages: `p4p.get_stopwords("french")`, `"german"`, `"spanish"`, ... (`p4p.stopword_languages()` lists all 33).
 
 **...see how often a word is used over time?**
 
@@ -484,7 +515,15 @@ Split a text into a list of words. Words keep internal apostrophes ("don't" stay
 
 #### `get_stopwords(language="english")`
 
-NLTK's list of very common words for a language, as a frozenset. Add your own with `|`: `p4p.get_stopwords() | {"applause"}`.
+NLTK's list of very common words for a language, as a frozenset. Add your own with `|`: `p4p.get_stopwords() | {"applause"}`. The lists (33 languages) come with the package, so nothing is downloaded.
+
+#### `download_nltk_data(*names, folder="p4p_data/nltk_data")`
+
+Download NLTK data (e.g. `"punkt_tab"`, which `nltk.word_tokenize` needs) into `folder`, and tell NLTK to look there; skips anything already downloaded. Use it instead of `nltk.download(...)`: it keeps the data inside your project folder, and works on a Mac without the "Install Certificates" step.
+
+#### `stopword_languages()`
+
+The languages `get_stopwords` has lists for: arabic, chinese, english, french, german, greek, italian, spanish, ... (33 in all).
 
 #### `count_words(text, lower=True, numbers=False, stopwords=None)`
 
@@ -629,6 +668,7 @@ If you are an AI assistant (Gemini, Claude, Copilot, ...) helping a student with
 - **Always look at examples in context** (`p4p.kwic`) before interpreting a distinctive word, topic or word-vector neighbour, and encourage the student to do so.
 - **Plots are plotnine (ggplot) objects**: modify with `+` (e.g. `+ p9.labs(title=...)`), save with `.save("name.png")`.
 - **Don't change system certificate settings** (no `sudo`, no symlinking certificate files) to make p4p's downloads work: it brings its own certificates (`certifi`). If a p4p download fails, report the error to the student instead.
+- **Keep downloads inside the student's folder.** For stopwords use `p4p.get_stopwords()` (no download), not `nltk.download("stopwords")`. For other NLTK data, `p4p.download_nltk_data(name)` (e.g. `"punkt_tab"`), not `nltk.download(name)`. For Hugging Face datasets, set `os.environ["HF_HOME"] = "p4p_data/huggingface"` before `import datasets`. Assistants' sandboxes often block writing elsewhere (e.g. `~/nltk_data`).
 - **Data is cached in `p4p_data/`** in the working directory. It can be large; don't commit it to git.
 - Each function's full documentation is in its docstring: `help(p4p.function_name)`.
 
@@ -660,6 +700,8 @@ The course notebooks are in [`notebooks/`](notebooks/). Click a workbook to open
 | `notebooks/` | the course workbooks |
 | `scripts/prepare_hansard.py` | builds the Hansard sample (and the full filtered corpus) from Odell's dataset and the Members API |
 | `scripts/train_word2vec.py` | trains the word2vec models on the full corpus (needs `gensim`, Python ≤ 3.13) |
+| `setup/AGENTS.md` | the rules file the AI-assistant setup prompt downloads into students' folders |
+| `python4poets/stopwords/` | NLTK's stopword lists (see its README.txt for sources), bundled so nothing is downloaded |
 | `tests/` | tests: `pip install -e . pytest`, then `pytest` |
 
 Large data files are hosted on Dropbox; their links are constants at the top of `python4poets/_corpus.py` and `python4poets/_vectors.py`. If you replace a file, upload the new version and update the link.

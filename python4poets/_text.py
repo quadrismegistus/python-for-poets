@@ -1,7 +1,10 @@
 """Splitting text into words."""
 
+import glob
+import os
 import re
 from functools import lru_cache
+from importlib.resources import files
 
 # A "word" is a run of letters, optionally joined by apostrophes: "don't",
 # "o'er", "rock'n'roll". Numbers and punctuation are left out.
@@ -55,19 +58,50 @@ def get_stopwords(language="english"):
 
         >>> stops = p4p.get_stopwords() | {"applause"}
 
-    Other languages: "german", "french", "spanish", "italian", ... (see
-    nltk.corpus.stopwords.fileids()).
+    Other languages: "german", "french", "spanish", "italian", ... (all 33
+    are listed by p4p.stopword_languages()).
+
+    The lists come with this package (copied from NLTK's stopwords corpus;
+    see python4poets/stopwords/README.txt), so nothing is downloaded.
+    """
+    path = files("python4poets").joinpath("stopwords", language.lower())
+    if not path.is_file():
+        raise ValueError(f"No stopword list for {language!r}. Choose one of: {', '.join(stopword_languages())}")
+    words = [line.strip() for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    return frozenset(_normalize_apostrophes(w) for w in words)
+
+
+def stopword_languages():
+    """The languages p4p.get_stopwords has lists for."""
+    folder = files("python4poets").joinpath("stopwords")
+    return sorted(p.name for p in folder.iterdir() if p.is_file() and "." not in p.name)
+
+
+def download_nltk_data(*names, folder=os.path.join("p4p_data", "nltk_data")):
+    """
+    Download NLTK data (e.g. "punkt_tab", for nltk.word_tokenize) into `folder`,
+    and tell NLTK to look there. Skips anything already downloaded.
+
+    Use this instead of nltk.download(...): it keeps the data inside your
+    project folder (AI assistants' sandboxes often can't write anywhere else),
+    and works on a Mac without the "Install Certificates" step.
+
+    Example:
+        >>> p4p.download_nltk_data("punkt_tab")
+        >>> nltk.word_tokenize("I don't know.")
     """
     import nltk
 
-    try:
-        words = nltk.corpus.stopwords.words(language)
-    except LookupError:
-        # The first time: download NLTK's stopword lists (see _net for why
-        # we supply the certificates).
-        from ._net import trusted_certificates
+    from ._net import trusted_certificates
 
+    folder = os.path.abspath(folder)
+    if folder not in nltk.data.path:
+        nltk.data.path.append(folder)
+    for name in names:
+        # Each package unzips to a folder of its name, e.g. tokenizers/punkt_tab.
+        if glob.glob(os.path.join(folder, "*", name)):
+            continue
         with trusted_certificates():
-            nltk.download("stopwords", quiet=True)
-        words = nltk.corpus.stopwords.words(language)
-    return frozenset(_normalize_apostrophes(w) for w in words)
+            ok = nltk.download(name, download_dir=folder, quiet=True, raise_on_error=True)
+        if not ok:
+            raise RuntimeError(f"Couldn't download NLTK data {name!r}")

@@ -26,6 +26,7 @@ def urlopen(url, timeout=60):
     return urllib.request.urlopen(url, timeout=timeout, context=ssl_context())
 
 
+
 @contextlib.contextmanager
 def trusted_certificates():
     """

@@ -19,6 +19,8 @@ Loading corpora
 Words
     p4p.tokenize(text)               split a text into words
     p4p.get_stopwords()              common words ("the", "of", ...) to leave out
+    p4p.stopword_languages()         the languages get_stopwords has lists for
+    p4p.download_nltk_data(name)     NLTK data (e.g. "punkt_tab"), kept in p4p_data/
 
 Counting
     p4p.count_words(text)                    {word: count} for one text
@@ -51,7 +53,7 @@ from ._distinctive import crosstab_stats, distinctive_words, distinctive_words_b
 from ._gutenberg import gutenberg_catalog, load_gutenberg, search_gutenberg, split_texts
 from ._kwic import kwic
 from ._plot import plot_distinctive_words, plot_word_over_time
-from ._text import get_stopwords, tokenize
+from ._text import download_nltk_data, get_stopwords, stopword_languages, tokenize
 from ._topics import topic_model
 from ._vectors import WordVectors, compare_similar, load_word_vectors
 
@@ -66,6 +68,7 @@ __all__ = [
     "distinctive_words",
     "distinctive_words_by_group",
     "download",
+    "download_nltk_data",
     "get_stopwords",
     "gutenberg_catalog",
     "kwic",
@@ -79,6 +82,7 @@ __all__ = [
     "plot_word_over_time",
     "search_gutenberg",
     "split_texts",
+    "stopword_languages",
     "tokenize",
     "topic_model",
     "WordVectors",
