@@ -11,6 +11,9 @@ Loading corpora
     p4p.load_novel450()              450 English, French and German novels
     p4p.load_hansard()               ~96,000 House of Commons speeches, 1979–2021
     p4p.load_corpus(csv, folder)     your own: a spreadsheet + a folder of .txt files
+    p4p.search_gutenberg(author=...) find books on Project Gutenberg
+    p4p.load_gutenberg(ids)          download Gutenberg books by number
+    p4p.split_texts(df, n_words)     split texts into paragraphs, or parts of n words
     p4p.download(url)                download (and unzip) a file
 
 Words
@@ -36,19 +39,26 @@ Plotting
 
 Topics
     p4p.topic_model(df, n_topics)    find topics; then type `model.` and Tab
+
+Word vectors
+    p4p.load_word_vectors(name)              word2vec trained on all of Hansard; then `wv.similar(word)`
+    p4p.compare_similar(word, [wv1, wv2])    a word's neighbours in two models
 """
 
 from ._corpus import download, load_corpus, load_hansard, load_novel450, load_sotu
 from ._counts import count_word_over_time, count_words, count_words_by_group
 from ._distinctive import crosstab_stats, distinctive_words, distinctive_words_by_group
+from ._gutenberg import gutenberg_catalog, load_gutenberg, search_gutenberg, split_texts
 from ._kwic import kwic
 from ._plot import plot_distinctive_words, plot_word_over_time
 from ._text import get_stopwords, tokenize
 from ._topics import topic_model
+from ._vectors import WordVectors, compare_similar, load_word_vectors
 
 __version__ = "0.1.0"
 
 __all__ = [
+    "compare_similar",
     "count_word_over_time",
     "count_words",
     "count_words_by_group",
@@ -57,13 +67,19 @@ __all__ = [
     "distinctive_words_by_group",
     "download",
     "get_stopwords",
+    "gutenberg_catalog",
     "kwic",
     "load_corpus",
+    "load_gutenberg",
     "load_hansard",
     "load_novel450",
     "load_sotu",
+    "load_word_vectors",
     "plot_distinctive_words",
     "plot_word_over_time",
+    "search_gutenberg",
+    "split_texts",
     "tokenize",
     "topic_model",
+    "WordVectors",
 ]

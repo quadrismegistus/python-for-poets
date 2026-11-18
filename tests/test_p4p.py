@@ -322,3 +322,130 @@ def test_download_rejects_web_page_and_replaces_broken_cache(tmp_path):
     (folder / "sample.parquet").write_bytes(page.read_bytes())
     path = p4p.download(good.as_uri(), folder=folder, filename="sample.parquet")
     assert pd.read_parquet(path)["txt"].tolist() == ["Order, order."]
+
+
+# --- word vectors ----------------------------------------------------------
+
+
+def _toy_vectors(name, flip=False):
+    words = ["fair", "just", "equal", "boat", "ship"]
+    vectors = [[1, 0, 0], [0.9, 0.1, 0], [0.8, 0, 0.2] if not flip else [0, 1, 0], [0, 1, 0], [0, 0.9, 0.1]]
+    return p4p.WordVectors(words, vectors, counts=[50, 40, 30, 20, 10], name=name)
+
+
+def test_word_vectors_similar_and_analogy():
+    wv = _toy_vectors("toy")
+    near = wv.similar("fair", n=2)
+    assert near["word"].tolist() == ["just", "equal"]
+    assert near["similarity"].iloc[0] == pytest.approx(wv.similarity("fair", "just"))
+    assert "fair" not in wv.analogy("boat", "ship", "fair")["word"].tolist()
+    with pytest.raises(KeyError):
+        wv.similar("absent")
+
+
+def test_compare_similar_sorts_by_difference():
+    a, b = _toy_vectors("a"), _toy_vectors("b", flip=True)
+    table = p4p.compare_similar("fair", [a, b], n=2)
+    # "equal" is close to "fair" in a, but not in b: it should come first.
+    assert table["word"].iloc[0] == "equal"
+    assert table["difference"].is_monotonic_decreasing
+
+
+def test_load_word_vectors_reads_downloaded_file(tmp_path):
+    df = pd.DataFrame({"word": ["fair", "just"], "count": [5, 3], "v0": [1.0, 0.9], "v1": [0.0, 0.1]})
+    df.to_parquet(tmp_path / "hansard_w2v_labour.parquet")
+    wv = p4p.load_word_vectors("labour", folder=tmp_path)
+    assert wv.name == "labour" and wv.similar("fair", n=1)["word"].tolist() == ["just"]
+
+
+# --- gutenberg -------------------------------------------------------------
+
+
+OLD_STYLE_BOOK = (
+    "﻿The Project Gutenberg EBook of Works, by Aphra Behn\r\n\r\nTitle: Works\r\n\r\n"
+    "*** START OF THIS PROJECT GUTENBERG EBOOK WORKS ***\r\n\r\n"
+    "Produced by Some Volunteers\r\n\r\n"
+    "First paragraph of the book.\r\n\r\nSecond paragraph.\r\n\r\n"
+    "End of the Project Gutenberg EBook of Works\r\n\r\n"
+    "*** END OF THIS PROJECT GUTENBERG EBOOK WORKS ***\r\n\r\nLicence text...\r\n"
+)
+
+
+def test_strip_gutenberg_header_old_and_new_styles():
+    from python4poets._gutenberg import strip_gutenberg_header
+
+    assert strip_gutenberg_header(OLD_STYLE_BOOK) == "First paragraph of the book.\n\nSecond paragraph.\n"
+    new = (
+        "*** START OF THE PROJECT GUTENBERG EBOOK 51783 ***\nThe Blazing-World.\n"
+        "*** END OF THE PROJECT GUTENBERG EBOOK 51783 ***\nLicence"
+    )
+    assert strip_gutenberg_header(new) == "The Blazing-World.\n"
+    assert strip_gutenberg_header("No markers at all.") == "No markers at all.\n"
+
+
+def test_split_texts_paragraphs_and_parts():
+    df = pd.DataFrame({"author": ["a", "b"], "txt": ["one two\r\n\r\nthree four five\r\n\r\nsix", "seven"]})
+    paragraphs = p4p.split_texts(df)
+    assert paragraphs["txt"].tolist() == ["one two", "three four five", "six", "seven"]
+    assert paragraphs["part"].tolist() == [0, 1, 2, 0]
+    assert paragraphs.columns.tolist() == ["author", "part", "txt"]
+    parts = p4p.split_texts(df, n_words=4)
+    assert parts["txt"].tolist() == ["one two\n\nthree four five", "six", "seven"]
+
+
+@pytest.fixture
+def tiny_catalog(tmp_path):
+    pd.DataFrame({
+        "Text#": [1, 2, 3, 4],
+        "Type": ["Text", "Text", "Text", "Sound"],
+        "Issued": ["2009-08-30"] * 4,
+        "Title": ["The Works of Aphra Behn", "The Blazing World", "Oroonoko", "Oroonoko (audio)"],
+        "Language": ["en", "en", "fr; en", "en"],
+        "Authors": [
+            "Behn, Aphra, 1640-1689; Summers, Montague, 1880-1948 [Editor]",
+            "Newcastle, Margaret Cavendish, Duchess of, 1624?-1674",
+            "Behn, Aphra, 1640-1689",
+            "Behn, Aphra",
+        ],
+        "Subjects": ["English fiction", "Utopias", "Slavery -- Fiction", ""],
+        "LoCC": ["PR"] * 4,
+        "Bookshelves": ["", "Science Fiction", "", ""],
+    }).to_csv(tmp_path / "pg_catalog.csv", index=False)
+    return tmp_path
+
+
+def test_gutenberg_catalog_and_search(tiny_catalog):
+    catalog = p4p.gutenberg_catalog(folder=tiny_catalog)
+    assert catalog["id"].tolist() == [1, 2, 3]  # the audio book is left out
+    assert catalog["author"].tolist() == ["Behn, Aphra", "Newcastle, Margaret Cavendish, Duchess of", "Behn, Aphra"]
+    assert p4p.search_gutenberg(author="behn", folder=tiny_catalog)["id"].tolist() == [1, 3]
+    assert p4p.search_gutenberg("science fiction", folder=tiny_catalog)["id"].tolist() == [2]
+    assert p4p.search_gutenberg(author="behn", language="fr", folder=tiny_catalog)["id"].tolist() == [3]
+    assert p4p.search_gutenberg("summers", language="", folder=tiny_catalog)["id"].tolist() == [1]
+
+
+def test_gutenberg_catalog_tries_snapshot_then_live(tiny_catalog, tmp_path, monkeypatch):
+    import zipfile
+
+    from python4poets import _gutenberg
+
+    csv = tiny_catalog / "pg_catalog.csv"
+    snapshot = tmp_path / "snapshot.zip"
+    with zipfile.ZipFile(snapshot, "w") as zf:
+        zf.write(csv, "pg_catalog.csv")
+
+    # The snapshot is used when it's there...
+    monkeypatch.setattr(_gutenberg, "GUTENBERG_CATALOG_SNAPSHOT_URL", snapshot.as_uri())
+    monkeypatch.setattr(_gutenberg, "GUTENBERG_CATALOG_URLS", [])
+    assert len(p4p.gutenberg_catalog(folder=tmp_path / "a")) == 3
+
+    # ...and if its link is broken, the live catalog is used instead.
+    monkeypatch.setattr(_gutenberg, "GUTENBERG_CATALOG_SNAPSHOT_URL", (tmp_path / "missing.zip").as_uri())
+    monkeypatch.setattr(_gutenberg, "GUTENBERG_CATALOG_URLS", [csv.as_uri()])
+    assert len(p4p.gutenberg_catalog(folder=tmp_path / "b")) == 3
+
+
+def test_load_gutenberg_uses_downloaded_books(tiny_catalog):
+    (tiny_catalog / "2.txt").write_text("The Blazing-World.\n", encoding="utf-8")
+    df = p4p.load_gutenberg(2, folder=tiny_catalog)
+    assert df[["id", "author", "txt"]].values.tolist() == [[2, "Newcastle, Margaret Cavendish, Duchess of", "The Blazing-World.\n"]]
